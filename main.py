@@ -19,6 +19,7 @@ Output:
     entry.png  (1024 x 1024, RGB)
 """
 
+import argparse
 import binascii
 import hashlib
 import struct
@@ -205,12 +206,20 @@ def draw_text_centered(canvas, y, text, scale, color):
 
 
 def wrap_text(text, max_width, scale):
-    """Greedy word wrap; returns a list of lines that fit max_width."""
+    """Greedy word wrap; returns a list of lines that fit max_width.
+
+    A single word longer than the line is clamped to the line width with
+    a trailing ellipsis, so text can never overflow the cell it is
+    drawn in.
+    """
     char_w = 6 * scale
     max_chars = max(1, max_width // char_w)
     lines = []
     current = ""
     for word in text.split(" "):
+        if len(word) > max_chars:
+            # Overlong word: keep as much as fits, mark the cut with "...".
+            word = word[:max(1, max_chars - 3)] + "..."
         trial = word if not current else current + " " + word
         if len(trial) <= max_chars:
             current = trial
@@ -314,10 +323,16 @@ def render():
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="Render the 21 Nov 2026 world-news poster as a PNG.")
+    parser.add_argument(
+        "--output", type=Path, default=OUT,
+        help="where to write the PNG (default: entry.png next to main.py)")
+    args = parser.parse_args()
     png = render()
-    OUT.write_bytes(png)
+    args.output.write_bytes(png)
     digest = hashlib.sha256(png).hexdigest()
-    print("wrote %s (%d bytes)" % (OUT, len(png)))
+    print("wrote %s (%d bytes)" % (args.output, len(png)))
     print("sha256: %s" % digest)
 
 
